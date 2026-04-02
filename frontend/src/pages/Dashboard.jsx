@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [colabUrl, setColabUrl] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [connectionError, setConnectionError] = useState('');
   const [client, setClient] = useState(null);
 
   const [selectedImage, setSelectedImage] = useState(null);
@@ -32,14 +33,16 @@ export default function Dashboard() {
   const handleConnect = async () => {
     if (!colabUrl) return;
     setIsConnecting(true);
+    setConnectionError('');
     try {
       const c = await Client.connect(colabUrl);
       setClient(c);
       setConnected(true);
+      setConnectionError('');
       localStorage.setItem('colabUrl', colabUrl);
     } catch (err) {
       console.error(err);
-      alert('Could not connect to Colab Gradio API. Make sure the URL is correct and running.');
+      setConnectionError(err.message || 'Could not connect. Please check if the Colab is running, or if you have a CORS issue.');
       setConnected(false);
     }
     setIsConnecting(false);
@@ -161,6 +164,21 @@ export default function Dashboard() {
             {isConnecting ? 'Connecting...' : connected ? 'Connected \u2713' : 'Connect'}
           </button>
         </div>
+
+        {connectionError && (
+          <div style={{ background: 'rgba(255, 0, 0, 0.1)', border: '1px solid var(--danger)', padding: '12px', borderRadius: '8px', marginBottom: '32px', color: '#fca5a5' }}>
+            <AlertCircle size={16} style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
+            <span style={{ fontSize: '14px', verticalAlign: 'middle' }}>
+              <strong>Connection Failed:</strong> {connectionError}
+              <br /><br />
+              <span style={{color: '#fff'}}>If you are getting a CORS error, you need to update your Gradio launch command in Google Colab to accept connections. For example:</span>
+              <br />
+              <code style={{background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#60a5fa'}}>
+                demo.launch(share=True, cors_allowed_origins=["http://localhost:5173"])
+              </code>
+            </span>
+          </div>
+        )}
 
         {/* Main Interface */}
         <div className="glass-panel" style={{ padding: '32px' }}>
