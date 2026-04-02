@@ -1,1 +1,1 @@
-# MediGemmaProject
+# MedGemmaProject
