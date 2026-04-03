@@ -30,7 +30,12 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
 # Accuracy Plot
 ax1.plot(epochs, train_acc, 'b-', label='Training Accuracy', linewidth=2.5)
 ax1.plot(epochs, val_acc, 'r--', label='Validation Accuracy', linewidth=2.5)
-ax1.set_title('Model Accuracy (Train vs Val)', fontsize=15, pad=15)
+
+# Add visual text for final accuracy
+final_acc = val_acc[-1] * 100
+ax1.text(epochs[-1], val_acc[-1] - 0.02, f'{final_acc:.1f}%', color='red', weight='bold', ha='right', fontsize=12)
+
+ax1.set_title(f'Model Accuracy (Train vs Val) - Final: {final_acc:.1f}%', fontsize=15, pad=15)
 ax1.set_xlabel('Training Epochs', fontsize=12)
 ax1.set_ylabel('Accuracy', fontsize=12)
 ax1.legend(loc='lower right', fontsize=11)
@@ -61,6 +66,11 @@ cm = np.array([
     [2, 5,  4,  115]
 ])
 
+# Calculate overall accuracy from the confusion matrix
+total_samples = np.sum(cm)
+correct_predictions = np.trace(cm)
+cm_accuracy = (correct_predictions / total_samples) * 100
+
 plt.figure(figsize=(10, 8))
 # High contrast professional colormap
 sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
@@ -68,7 +78,7 @@ sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
             annot_kws={"size": 16, "weight": "bold"},
             cbar_kws={'label': 'Number of Scans'})
 
-plt.title('Validation Classification Confusion Matrix', pad=25, fontsize=18, weight='bold')
+plt.title(f'Validation Confusion Matrix\nOverall Accuracy: {cm_accuracy:.1f}%', pad=25, fontsize=18, weight='bold')
 plt.ylabel('Actual Category (Ground Truth)', fontsize=14, weight='bold', labelpad=15)
 plt.xlabel('Predicted Category (AI Output)', fontsize=14, weight='bold', labelpad=15)
 
@@ -79,4 +89,7 @@ plt.tight_layout()
 plt.savefig('evaluation_graphs/confusion_matrix_heatmap.png', dpi=300, bbox_inches='tight')
 plt.close()
 
+print("==================================================")
+print(f"Final Validation Accuracy: {cm_accuracy:.2f}%")
+print("==================================================")
 print("Graphs successfully generated and saved into the 'evaluation_graphs' folder.")
