@@ -8,15 +8,26 @@ export default function Landing() {
   const [isLogin, setIsLogin] = useState(true);
   
   // Form states
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // Mock authentication
-    console.log(`Authenticating ${role} with email ${email}`);
     // Save to local storage for demo purposes
     localStorage.setItem('userRole', role);
+    localStorage.setItem('userEmail', email);
+    
+    // Set a display name
+    let displayName = name;
+    if (!displayName) {
+      // Derive from email if login
+      displayName = email.split('@')[0];
+      // Format derived name slightly
+      displayName = displayName.charAt(0).toUpperCase() + displayName.slice(1);
+    }
+    localStorage.setItem('userName', displayName);
+    
     navigate('/dashboard');
   };
 
@@ -54,7 +65,14 @@ export default function Landing() {
           {!isLogin && (
             <div className="input-group">
               <label className="input-label">Full Name</label>
-              <input type="text" className="input-field" placeholder="Dr. Jane Doe" required />
+              <input 
+                type="text" 
+                className="input-field" 
+                placeholder={role === 'doctor' ? "Dr. Jane Doe" : "Jane Doe"} 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required 
+              />
             </div>
           )}
           
