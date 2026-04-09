@@ -59,11 +59,19 @@ export default function Dashboard() {
     setIsConnecting(true);
     setConnectionError('');
     try {
-      const c = await Client.connect(colabUrl);
+      // Sanitize URL: trim whitespace and remove trailing slash
+      let cleanUrl = colabUrl.trim();
+      if (cleanUrl.endsWith('/')) {
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+      
+      console.log("🔗 Connecting to Gradio:", cleanUrl);
+      const c = await Client.connect(cleanUrl);
       setClient(c);
       setConnected(true);
       setConnectionError('');
-      localStorage.setItem('colabUrl', colabUrl);
+      localStorage.setItem('colabUrl', cleanUrl);
+      setColabUrl(cleanUrl);
     } catch (err) {
       console.error(err);
       setConnectionError(err.message || 'Could not connect. Please check if the Colab is running, or if you have a CORS issue.');
@@ -84,6 +92,15 @@ export default function Dashboard() {
     }
   };
 
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
   const analyzeScan = async () => {
     if (!client || !imageFile) return;
     setIsAnalyzing(true);
@@ -92,43 +109,73 @@ export default function Dashboard() {
     setFindings([]);
 
     try {
-      const result = await client.predict("/predict", {
-        image: imageFile,
-        text_prompt: prompt || "What pathology is visible?",
-      });
+      const base64Image = await fileToBase64(imageFile);
+      console.log("📸 Image converted to Base64 to bypass Colab Upload Hang");
+      
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Request timed out after 3 minutes. The Colab backend might be stuck or out of memory.")), 180000)
+      );
 
-      console.log("Prediction Result:", result.data);
+      const predictPromise = client.predict("/predict", [
+        base64Image,
+        prompt || "What pathology is visible?",
+      ]);
+
+      const result = await Promise.race([predictPromise, timeoutPromise]);
+      console.log("✅ Raw Gradio Result:", result);
+
+      if (!result.data || (!Array.isArray(result.data) && typeof result.data !== 'string')) {
+        console.warn("Unexpected result structure:", result);
+        setResultText("The backend returned an unexpected format. Check the browser console and Colab logs.");
+        setIsAnalyzing(false);
+        return;
+      }
 
       let textResponse = '';
       let imgResponse = null;
 
-      // Robustly parse the response for Text and Image
+      // Handle Array response (standard for gr.Interface/gr.Blocks with multiple outputs)
       if (Array.isArray(result.data)) {
-        result.data.forEach(item => {
-          if (typeof item === 'string') {
-             if (item.startsWith('http') || item.startsWith('data:image')) {
-               imgResponse = item;
-             } else if (textResponse === '') {
-               textResponse = item;
-             }
-          } else if (item && typeof item === 'object') {
-             if (item.url) imgResponse = item.url;
-             else if (item.path) imgResponse = item.path;
-             else if (textResponse === '') textResponse = JSON.stringify(item);
+        result.data.forEach((item, idx) => {
+          // In the current notebook: outputs=[img_output, text_output]
+          // index 0 = image, index 1 = text
+          if (idx === 1 && typeof item === 'string') {
+            textResponse = item;
+          } else if (idx === 0) {
+            if (typeof item === 'string') {
+              imgResponse = item;
+            } else if (item && typeof item === 'object') {
+              imgResponse = item.url || item.path || (item.data ? item.data : null);
+            }
           }
         });
+
+        // Fallback for different indexing or single-element arrays
+        if (!textResponse && result.data.length > 0) {
+          const stringItem = result.data.find(i => typeof i === 'string');
+          if (stringItem) textResponse = stringItem;
+        }
       } else if (typeof result.data === 'string') {
         textResponse = result.data;
       }
 
       if (textResponse) {
+        // Clean up markdown bolding which can clutter simple UI components
         textResponse = textResponse.replace(/\*\*/g, '');
         setResultText(textResponse);
       } else {
-        setResultText("No text report was generated.");
+        setResultText("Analysis complete, but no text report was found in the response.");
       }
-      
+
       if (imgResponse) {
+        // If the backend returns a relative path (common in some Gradio versions), 
+        // we must prepend the Colab/Gradio URL to make it a valid absolute URL.
+        if (typeof imgResponse === 'string' && !imgResponse.startsWith('http') && !imgResponse.startsWith('data:')) {
+            const baseUrl = colabUrl.endsWith('/') ? colabUrl.slice(0, -1) : colabUrl;
+            // Gradio absolute path for files is usually /file=... or similar
+            const cleanPath = imgResponse.startsWith('/') ? imgResponse : `/${imgResponse}`;
+            imgResponse = `${baseUrl}${cleanPath}`;
+        }
         setResultImage(imgResponse);
       }
 
@@ -140,7 +187,20 @@ export default function Dashboard() {
 
     } catch (error) {
       console.error("Analysis Failed", error);
-      setResultText("An error occurred while analyzing the scan. Check the Colab logs.");
+      
+      // Attempt to extract as much information from the error as possible
+      let errorDetails = error.message || 'Unknown Error';
+      try {
+          if (error.stack) errorDetails += `\\n\\nStack: ${error.stack}`;
+          if (error.response) errorDetails += `\\n\\nResponse: ${JSON.stringify(error.response)}`;
+          
+          errorDetails += `\\n\\nRaw Error Object: ${JSON.stringify(error, Object.getOwnPropertyNames(error))}`;
+      } catch(e) {}
+
+      setResultText(`🚨 DIANGNOSTIC ERROR:\\n\\n${errorDetails}\\n\\nIf this says "Failed to fetch" or "NetworkError", your browser (Safari) is blocking the connection to Colab because of Cross-Origin rules.`);
+      setIsAnalyzing(false);
+    } finally {
+      setIsAnalyzing(false);
     }
     setIsAnalyzing(false);
   };
@@ -624,7 +684,7 @@ export default function Dashboard() {
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', marginTop: '24px' }}>
-                  
+
                   {/* Top Images Section */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px' }}>
                     {/* Left: Original Image */}
