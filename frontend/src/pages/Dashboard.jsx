@@ -19,11 +19,6 @@ export default function Dashboard() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageFile, setImageFile] = useState(null);
   const [prompt, setPrompt] = useState('');
-  const [patientAge, setPatientAge] = useState('');
-  const [patientSex, setPatientSex] = useState('Male');
-  const [scanType, setScanType] = useState('X-Ray');
-  const [symptoms, setSymptoms] = useState('');
-  const [featureHighlight, setFeatureHighlight] = useState('');
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [resultText, setResultText] = useState('');
@@ -97,15 +92,9 @@ export default function Dashboard() {
     setFindings([]);
 
     try {
-      const clinicalContext = `Patient Age: ${patientAge || 'Unknown'}, Sex: ${patientSex}, Scan Type: ${scanType}. Symptoms: ${symptoms || 'None reported'}.`;
-      let enhancedPrompt = `${clinicalContext} Clinical Inquiry: ${prompt || "What pathology is visible?"}`;
-      if (featureHighlight) {
-        enhancedPrompt += ` Feature to Highlight: ${featureHighlight}`;
-      }
-
       const result = await client.predict("/predict", {
         image: imageFile,
-        text_prompt: enhancedPrompt,
+        text_prompt: prompt || "What pathology is visible?",
       });
 
       console.log("Prediction Result:", result.data);
@@ -182,10 +171,6 @@ export default function Dashboard() {
         patientName: userName,
         date: new Date().toLocaleDateString(),
         prompt: prompt || "What pathology is visible?",
-        age: patientAge,
-        sex: patientSex,
-        scanType: scanType,
-        symptoms: symptoms,
         scanImage: compressedBase64,
         aiResult: resultText,
         findings
@@ -624,49 +609,7 @@ export default function Dashboard() {
             {/* Main Interface */}
             <div className="glass-panel" style={{ padding: '32px' }}>
 
-              <h2 style={{ marginBottom: '24px', fontSize: '18px', borderBottom: '1px solid var(--panel-border)', paddingBottom: '12px' }}>Patient Demographics & Clinical Context</h2>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr)', gap: '20px', marginBottom: '16px' }}>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label className="input-label">Age</label>
-                  <input type="number" className="input-field" placeholder="E.g., 45" value={patientAge} onChange={(e) => setPatientAge(e.target.value)} />
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label className="input-label">Biological Sex</label>
-                  <select className="input-field" value={patientSex} onChange={(e) => setPatientSex(e.target.value)} style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239CA3AF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '12px auto' }}>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label className="input-label">Scan Modality</label>
-                  <select className="input-field" value={scanType} onChange={(e) => setScanType(e.target.value)} style={{ appearance: 'none', backgroundImage: 'url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%239CA3AF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 16px center', backgroundSize: '12px auto' }}>
-                    <option value="X-Ray">X-Ray</option>
-                    <option value="MRI">MRI</option>
-                    <option value="CT Scan">CT Scan</option>
-                    <option value="Ultrasound">Ultrasound</option>
-                    <option value="PET Scan">PET Scan</option>
-                    <option value="Mammography">Mammography</option>
-                    <option value="Fluoroscopy">Fluoroscopy</option>
-                    <option value="Angiography">Angiography</option>
-                    <option value="Endoscopy / Colonoscopy">Endoscopy / Colonoscopy</option>
-                    <option value="Funduscopy (Retinal)">Funduscopy (Retinal)</option>
-                    <option value="Optical Coherence Tomography (OCT)">Optical Coherence Tomography (OCT)</option>
-                    <option value="Pathology (Histology)">Pathology (Histology)</option>
-                    <option value="Electrocardiogram (ECG/EKG Visual)">Electrocardiogram (ECG/EKG Visual)</option>
-                    <option value="Clinical Photograph">Clinical Photograph</option>
-                    <option value="Dermatology / Skin">Dermatology / Skin</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label className="input-label">Presenting Symptoms & Medical History</label>
-                <textarea className="input-field" rows="2" style={{ height: 'auto', resize: 'vertical' }} placeholder="E.g., Persistent cough for 2 weeks, mild fever. History of smoking." value={symptoms} onChange={(e) => setSymptoms(e.target.value)}></textarea>
-              </div>
-
-              {/* Patient Demographics fields... */}
+              {/* Patient Demographics fields removed — OWS model handles object detection */}
 
               {!selectedImage ? (
                 <div className="uploader" onClick={() => fileInputRef.current?.click()} style={{ marginTop: '24px' }}>
@@ -728,7 +671,7 @@ export default function Dashboard() {
 
                   {/* Bottom Outputs Section */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '20px' }}>
-                    {/* Left: Action Button / Prompts */}
+                    {/* Left: Action Button / Prompt */}
                     <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', background: 'rgba(0,0,0,0.2)' }}>
                       <div className="input-group" style={{ marginBottom: 0 }}>
                         <label className="input-label" style={{ fontSize: '13px', color: '#ccc' }}>Diagnostic Query</label>
@@ -741,18 +684,7 @@ export default function Dashboard() {
                           style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
                         />
                       </div>
-                      <div className="input-group" style={{ marginBottom: 0 }}>
-                        <label className="input-label" style={{ fontSize: '13px', color: '#ccc' }}>Feature to Highlight (Optional)</label>
-                        <input
-                          type="text"
-                          className="input-field"
-                          value={featureHighlight}
-                          onChange={(e) => setFeatureHighlight(e.target.value)}
-                          placeholder="e.g. infection"
-                          style={{ background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)' }}
-                        />
-                      </div>
-                      
+
                       <div style={{ flexGrow: 1 }}></div>
 
                       <button
